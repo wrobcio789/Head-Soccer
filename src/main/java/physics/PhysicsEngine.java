@@ -11,12 +11,14 @@ public class PhysicsEngine {
 
     public PhysicsEngine(Vec2 gravity){
         world = new World(gravity);
-        world.setAllowSleep(true);
+        world.setAutoClearForces(true);
+        world.setAllowSleep(false);
         world.setContinuousPhysics(true);
     }
 
     public void update(float dt){
         world.step(dt, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
+
     }
 
     public void setGravity(Vec2 gravity){

@@ -26,7 +26,7 @@ public class Entity implements Renderable, PhysicsObject {
     @Override
     public void CreateBody(World world){
         physicsBody = world.createBody(bodyFullDefinition.getBodyDef());
-        physicsBody.createFixture(bodyFullDefinition.getShape(), bodyFullDefinition.getDensity());
+        physicsBody.createFixture(bodyFullDefinition.getFixtureDef());
     }
 
     @Override
@@ -36,8 +36,14 @@ public class Entity implements Renderable, PhysicsObject {
     }
 
     @Override
+    public Body getBody(){
+        return physicsBody;
+    }
+
+    @Override
     public GraphicsObject getGraphicsObject() {
-        graphicsObject.setPosition(getPosition());
+        graphicsObject.setPosition(new Vec2(getPosition().x * Constants.PTM, Constants.SCREEN_HEIGHT - getPosition().y * Constants.PTM));
+        graphicsObject.setAngle(-physicsBody.getAngle() * 180.0f / (float)(Math.PI));
         return graphicsObject;
     }
 }

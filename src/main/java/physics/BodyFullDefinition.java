@@ -2,27 +2,22 @@ package physics;
 
 import org.jbox2d.collision.shapes.Shape;
 import org.jbox2d.dynamics.BodyDef;
+import org.jbox2d.dynamics.FixtureDef;
 
 public class BodyFullDefinition {
     private BodyDef bodyDef;
-    private Shape shape;
-    private float density;
+    private FixtureDef fixtureDef;
 
-    public BodyFullDefinition(BodyDef bodyDef, Shape shape, float density){
+    public BodyFullDefinition(BodyDef bodyDef, FixtureDef fixtureDef){
         this.bodyDef = bodyDef;
-        this.shape = shape;
-        this.density = density;
+        this.fixtureDef = fixtureDef;
     }
 
     public BodyDef getBodyDef(){
         return bodyDef;
     }
 
-    public Shape getShape() {
-        return shape;
-    }
-
-    public float getDensity() {
-        return density;
+    public FixtureDef getFixtureDef() {
+        return fixtureDef;
     }
 }

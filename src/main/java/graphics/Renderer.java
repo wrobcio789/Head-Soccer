@@ -1,4 +1,5 @@
 package graphics;
+import game.Constants;
 import javafx.scene.canvas.GraphicsContext;
 
 import java.util.ArrayList;
@@ -14,7 +15,7 @@ public class Renderer {
     }
 
     public void render(){
-        gc.clearRect(0, 0, 1200, 1000);
+        gc.clearRect(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         for(Renderable renderable: renderables){
             renderable.getGraphicsObject().render(gc);
         }
