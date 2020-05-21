@@ -1,4 +1,4 @@
-package sample.graphics;
+package graphics;
 
 public interface Renderable {
     GraphicsObject getGraphicsObject();
