@@ -7,6 +7,7 @@ import communication.ServerCommunicator;
 import game.*;
 import game.events.bonuses.BonusTypes;
 import graphics.Renderer;
+import graphics.ScoreBoard;
 import graphics.Sprite;
 import graphics.Timer;
 import input.Input;
@@ -41,6 +42,7 @@ public class GameClient extends Application {
     private Entity ball;
     private Input input = null;
     private Timer timer = null;
+    private ScoreBoard scoreBoard = null;
     private int clientId = 1;
     private float timeScale = 1.0f;
     private Bonus bonus;
@@ -61,6 +63,10 @@ public class GameClient extends Application {
         Text text = new Text();
         timer = new Timer(new Vec2(0.43f,0.4f),text);
 
+        Text scoreText1 = new Text();
+        Text scoreText2 = new Text();
+        scoreBoard = new ScoreBoard((new Vec2(0.43f,0.4f)), scoreText1, scoreText2);
+
         primaryStage.setTitle(TITLE);
         Group root = new Group();
         Canvas canvas = new Canvas(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
@@ -69,6 +75,8 @@ public class GameClient extends Application {
 
         root.getChildren().add(canvas);
         root.getChildren().add(text);
+        root.getChildren().add(scoreText1);
+        root.getChildren().add(scoreText2);
         scene = new Scene(root);
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -119,6 +127,7 @@ public class GameClient extends Application {
         renderer.addRenderable(backgroundSprite);
         renderer.addRenderable(ball);
         renderer.addRenderable(timer);
+        renderer.addRenderable(scoreBoard);
         renderer.addRenderable(leftPlayer);
         renderer.addRenderable(rightPlayer);
         renderer.addRenderable(rightGoal);
@@ -157,6 +166,8 @@ public class GameClient extends Application {
                 float dt = timeScale * ((currentNanoTime - previousNanoTime) / 1000000000.0f);
                 previousNanoTime = currentNanoTime;
 
+                timer.update();
+
                 input.update();
                 attendReceivedMessages();
                 renderer.render();
@@ -192,6 +203,7 @@ public class GameClient extends Application {
         player1.resetScore();
         player2.resetScore();
         timer.resetTime();
+        //scoreBoard.resetScore();
     }
 
     private void resetPositions (){
@@ -245,6 +257,7 @@ public class GameClient extends Application {
     private void scoreMessage(int[] argsInt, float[] argsFloat){
         player1.setScore(argsInt[0]);
         player2.setScore(argsInt[1]);
+        scoreBoard.setScore(player1.getScore(), player2.getScore());
     }
 
     private void ballPosMessage(int[] argsInt, float[] argsFloat){
@@ -262,6 +275,7 @@ public class GameClient extends Application {
     }
 
     private void timeMessage(int[] argsInt, float[] argsFloat){
+        //timer.refresh(argsFloat[0]);
         timer.setTime(argsFloat[0]);
     }
 

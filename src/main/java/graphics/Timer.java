@@ -22,15 +22,36 @@ public class Timer extends GraphicsObject {
     }
 
     public void resetTime(){
-        time = 0;
+        time = 50;
     }
 
     public float getTime(){return this.time;}
 
-    public void update(float dt){
-        time += dt;
-        String tmp = String.format("%05.2f", time);
-        text.setText(tmp.substring(0,2) + ':' + tmp.substring(3,5));
+
+    public void update(){ // wersja kliencka
+        if(time < 100.0f){
+            text.setX(Constants.TIMER_POS_X);
+            String tmp = String.format("%05.2f", time);
+            text.setText(tmp.substring(0,2) + ':' + tmp.substring(3,5));
+        }else{
+            text.setX(Constants.TIMER_POS_X - Constants.TIMER_FONT_SIZE / 3);
+            String tmp = String.format("%06.2f", time);
+            text.setText(tmp.substring(0,3) + ':' + tmp.substring(4,6));
+        }
+    }
+
+    public void update(float dt){ // wersja serwerowa
+        time -= dt;
+
+        if(time < 100.0f){
+            text.setX(Constants.TIMER_POS_X);
+            String tmp = String.format("%05.2f", time);
+            text.setText(tmp.substring(0,2) + ':' + tmp.substring(3,5));
+        }else{
+            text.setX(Constants.TIMER_POS_X - Constants.TIMER_FONT_SIZE / 3);
+            String tmp = String.format("%06.2f", time);
+            text.setText(tmp.substring(0,3) + ':' + tmp.substring(4,6));
+        }
     }
 
     public void setTime(float time){

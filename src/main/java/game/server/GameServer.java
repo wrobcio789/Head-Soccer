@@ -7,6 +7,7 @@ import game.*;
 import game.events.BallKickEvent;
 import game.events.GoalEvent;
 import graphics.Renderer;
+import graphics.ScoreBoard;
 import graphics.Sprite;
 import graphics.Timer;
 import javafx.animation.AnimationTimer;
@@ -37,6 +38,7 @@ public class GameServer extends Application {
     private Player player1, player2;
     private Entity ball;
     private Timer timer = null;
+    private ScoreBoard scoreBoard = null;
     private float timeScale = 1.0f;
     private Bonus bonus;
 
@@ -57,6 +59,10 @@ public class GameServer extends Application {
         Text text = new Text();
         timer = new Timer(new Vec2(0.43f,0.4f),text);
 
+        Text scoreText1 = new Text();
+        Text scoreText2 = new Text();
+        scoreBoard = new ScoreBoard((new Vec2(0.43f,0.4f)), scoreText1, scoreText2);
+
         primaryStage.setTitle(TITLE);
         Group root = new Group();
         Canvas canvas = new Canvas(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
@@ -66,6 +72,8 @@ public class GameServer extends Application {
 
         root.getChildren().add(canvas);
         root.getChildren().add(text);
+        root.getChildren().add(scoreText1);
+        root.getChildren().add(scoreText2);
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -118,6 +126,7 @@ public class GameServer extends Application {
         renderer.addRenderable(rightGoal);
         renderer.addRenderable(leftGoal);
         renderer.addRenderable(timer);
+        renderer.addRenderable(scoreBoard);
         renderer.addRenderable(leftPlayer);
         renderer.addRenderable(rightPlayer);
         physicsEngine.addPhysicsObject(ball);
@@ -160,7 +169,16 @@ public class GameServer extends Application {
                 sendRegularMessages();
 
                 physicsEngine.update(dt);
+
+                if(timer.getTime() - dt < 0.0f){
+                    resetGame();
+                    resetPositions();
+                }
+
                 timer.update(dt);
+
+
+
                 renderer.render();
             }
         };
@@ -175,6 +193,7 @@ public class GameServer extends Application {
         } else {
             player1.addScore();
         }
+        scoreBoard.setScore(player1.getScore(), player2.getScore());
         resetPositions();
         checkScores();
     }
@@ -217,6 +236,7 @@ public class GameServer extends Application {
         player1.resetScore();
         player2.resetScore();
         timer.resetTime();
+        scoreBoard.resetScore();
     }
 
     public void resetPositions (){
@@ -227,7 +247,7 @@ public class GameServer extends Application {
         });
     }
 
-    private void resetGame(){
+    public void resetGame(){
         resetPlayersScore();
         resetPlayersScore();
         resetBonus();

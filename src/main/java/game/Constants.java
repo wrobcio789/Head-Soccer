@@ -45,6 +45,11 @@ public class Constants {
     public static final float TIMER_POS_X = SCREEN_WIDTH/2.0f - 2.0f*TIMER_FONT_SIZE;
     public static final float TIMER_POS_Y = SCREEN_HEIGHT/8.0f;
 
+    public static final float SCOREBOARD_FONT_SIZE = 50;
+    public static final float SCOREBOARD_LEFT_X = SCREEN_WIDTH*0.3f;
+    public static final float SCOREBOARD_RIGHT_X = (float) (SCREEN_WIDTH*0.7 - SCOREBOARD_FONT_SIZE);
+    public static final float SCOREBOARD_Y = SCREEN_HEIGHT/8.0f;
+
     public static final int MESSAGE_ARGS_SIZE = 4;
     public static final int MESSAGE_BUFFER_SIZE = 128;
 
