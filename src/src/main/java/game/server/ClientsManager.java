@@ -15,7 +15,6 @@ public class ClientsManager implements Runnable{
     private final MessageQueue receivedMessages;
     private final MessageQueue[] sentMessages;
     private final Callback resetCallback;
-    private final Thread[] threads = new Thread[Constants.MAX_PLAYERS];
 
     public ClientsManager(MessageQueue receivedMessages, MessageQueue[] sentMessages, Callback resetCallback){
         this.receivedMessages = receivedMessages;
@@ -37,19 +36,10 @@ public class ClientsManager implements Runnable{
     private void handleClient(ServerSocket server, int id){
         try {
             Socket client = server.accept();
-            threads[id] = new Thread(new ServerCommunicator(sentMessages[id], receivedMessages, client));
-            threads[id].start();
+            new Thread(new ServerCommunicator(sentMessages[id], receivedMessages, client)).start();
             resetCallback.call();
         } catch (IOException e) {
             System.out.println("Could not connect to socket");
         }
-    }
-
-    public boolean interrupted(){
-        for(Thread thread : threads){
-            if(!(thread != null && (thread.isInterrupted() || !thread.isAlive())))
-                return false;
-        }
-        return true;
     }
 }

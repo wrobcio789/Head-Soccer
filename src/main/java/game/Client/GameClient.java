@@ -46,6 +46,7 @@ public class GameClient extends Application {
     private int clientId = 1;
     private float timeScale = 1.0f;
     private Bonus bonus;
+    private Thread communicator;
 
     private final MessageQueue receivedMessages = new MessageQueue();
     private final MessageQueue sentMessages = new MessageQueue();
@@ -57,6 +58,13 @@ public class GameClient extends Application {
         Init();
         StartCommunicator();
         Loop();
+    }
+
+    @Override
+    public void stop() throws Exception {
+        if(communicator != null) {
+            communicator.interrupt();
+        }
     }
 
     private void InitWindow(Stage primaryStage) {
@@ -179,7 +187,8 @@ public class GameClient extends Application {
 
     private void StartCommunicator(){
         try {
-            new Thread(new ServerCommunicator(sentMessages, receivedMessages)).start();
+            communicator = new Thread(new ServerCommunicator(sentMessages, receivedMessages));
+            communicator.start();
         } catch (IOException e) {
             System.out.println("Could not create server communicator");
             System.exit(-1);

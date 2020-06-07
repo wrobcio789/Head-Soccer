@@ -26,6 +26,7 @@ public class BallKickEvent implements PhysicsContactListener {
             return;
         }
 
+        System.out.println("Applied force");
         ballBody.applyForceToCenter(Constants.BALL_KICK_VEC.mul(Math.abs(playerVelocity.x)));
     }
 }

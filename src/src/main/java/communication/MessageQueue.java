@@ -15,7 +15,8 @@ public class MessageQueue {
             semaphore.acquire();
             queue.add(message);
             semaphore.release();
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 

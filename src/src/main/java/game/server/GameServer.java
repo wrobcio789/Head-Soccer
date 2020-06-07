@@ -41,8 +41,8 @@ public class GameServer extends Application {
     private ScoreBoard scoreBoard = null;
     private float timeScale = 1.0f;
     private Bonus bonus;
-    private ClientsManager clientsManager;
 
+    private final boolean[] playerMoved = new boolean[Constants.MAX_PLAYERS];
     private final MessageQueue receivedMessages = new MessageQueue();
     private final MessageQueue[] sentMessages = {new MessageQueue(), new MessageQueue()};
 
@@ -76,6 +76,7 @@ public class GameServer extends Application {
         root.getChildren().add(scoreText2);
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
+        primaryStage.show();
     }
 
     private void InitGame() throws FileNotFoundException {
@@ -147,8 +148,7 @@ public class GameServer extends Application {
     }
 
     private void StartCommunicators(){
-        clientsManager = new ClientsManager(receivedMessages, sentMessages, this::resetGame);
-        new Thread(clientsManager).start();
+        new Thread(new ClientsManager(receivedMessages, sentMessages, this::resetGame)).start();
     }
 
     private void Loop() {
@@ -165,8 +165,6 @@ public class GameServer extends Application {
                 float dt = timeScale * ((currentNanoTime - previousNanoTime) / 1000000000.0f);
                 previousNanoTime = currentNanoTime;
 
-                checkIfFinished();
-
                 attendReceivedMessages();
                 sendRegularMessages();
 
@@ -178,16 +176,15 @@ public class GameServer extends Application {
                 }
 
                 timer.update(dt);
+
+
+
+                renderer.render();
             }
         };
 
         final long startNanoTime = System.nanoTime();
         new GameLoop(startNanoTime).start();
-    }
-
-    private void checkIfFinished(){
-        if(clientsManager.interrupted())
-            System.exit(0);
     }
 
     public void goal(int side) {
@@ -252,7 +249,7 @@ public class GameServer extends Application {
 
     public void resetGame(){
         resetPlayersScore();
-        resetPositions();
+        resetPlayersScore();
         resetBonus();
     }
 

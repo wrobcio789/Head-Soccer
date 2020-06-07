@@ -1,17 +1,18 @@
-package game.server;
+package game.Client;
 
 import communication.MessageParser;
 import communication.MessageQueue;
 import communication.MessageType;
+import communication.ServerCommunicator;
 import game.*;
-import game.events.BallKickEvent;
-import game.events.GoalEvent;
+import game.events.bonuses.BonusTypes;
 import graphics.Renderer;
 import graphics.ScoreBoard;
 import graphics.Sprite;
 import graphics.Timer;
+import input.Input;
+import input.KeyboardInput;
 import javafx.animation.AnimationTimer;
-import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Group;
@@ -19,39 +20,42 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import org.jbox2d.common.Vec2;
 import physics.BodyFullDefinition;
+import physics.PhysicsContactListener;
 import physics.PhysicsEngine;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.Random;
+import java.io.IOException;
+import java.util.Arrays;
 
-
-public class GameServer extends Application {
-    private static final String TITLE = "Head Soccer";
+public class GameClient extends Application {
+    private static final String TITLE = Constants.TITLE;
+    private Scene scene;
     private Renderer renderer = null;
-    private PhysicsEngine physicsEngine = null;
+    private PhysicsEngine physicsEngine;
     private Player player1, player2;
     private Entity ball;
+    private Input input = null;
     private Timer timer = null;
     private ScoreBoard scoreBoard = null;
+    private int clientId = 1;
     private float timeScale = 1.0f;
     private Bonus bonus;
-    private ClientsManager clientsManager;
 
     private final MessageQueue receivedMessages = new MessageQueue();
-    private final MessageQueue[] sentMessages = {new MessageQueue(), new MessageQueue()};
+    private final MessageQueue sentMessages = new MessageQueue();
 
 
     @Override
     public void start(Stage primaryStage) throws Exception {
         InitWindow(primaryStage);
-        InitGame();
-        StartCommunicators();
+        Init();
+        StartCommunicator();
         Loop();
     }
 
@@ -68,17 +72,17 @@ public class GameServer extends Application {
         Canvas canvas = new Canvas(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         GraphicsContext gc = canvas.getGraphicsContext2D();
         renderer = new Renderer(gc);
-        physicsEngine = new PhysicsEngine(Constants.GRAVITY);
 
         root.getChildren().add(canvas);
         root.getChildren().add(text);
         root.getChildren().add(scoreText1);
         root.getChildren().add(scoreText2);
-        Scene scene = new Scene(root);
+        scene = new Scene(root);
         primaryStage.setScene(scene);
+        primaryStage.show();
     }
 
-    private void InitGame() throws FileNotFoundException {
+    private void Init() throws FileNotFoundException {
         Image image = new Image(new FileInputStream("resources//obrazek_small.png"));
         Sprite backgroundSprite = new Sprite(new Image(new FileInputStream("resources//boisko_final.png")), new Vec2(0.0f, 0.0f));
 
@@ -122,12 +126,14 @@ public class GameServer extends Application {
 
         renderer.addRenderable(backgroundSprite);
         renderer.addRenderable(ball);
-        renderer.addRenderable(rightGoal);
-        renderer.addRenderable(leftGoal);
         renderer.addRenderable(timer);
         renderer.addRenderable(scoreBoard);
         renderer.addRenderable(leftPlayer);
         renderer.addRenderable(rightPlayer);
+        renderer.addRenderable(rightGoal);
+        renderer.addRenderable(leftGoal);
+
+        physicsEngine = new PhysicsEngine(Constants.GRAVITY);
         physicsEngine.addPhysicsObject(ball);
         physicsEngine.addPhysicsObject(rightGoal);
         physicsEngine.addPhysicsObject(leftGoal);
@@ -138,24 +144,19 @@ public class GameServer extends Application {
         physicsEngine.addPhysicsObject(leftPlayer);
         physicsEngine.addPhysicsObject(rightPlayer);
 
-        physicsEngine.addContactListener(new GoalEvent(this));
-        physicsEngine.addContactListener(new BallKickEvent());
-        physicsEngine.addContactListener(Bonus.BonusContactListener(this));
 
+        input = new KeyboardInput(scene, KeyCode.A, KeyCode.D, KeyCode.W);
+        setInputCallbacks();
         player1 = new Player(null, leftPlayer, "Maciej");
         player2 = new Player(null, rightPlayer, "Kaxaj");
-    }
 
-    private void StartCommunicators(){
-        clientsManager = new ClientsManager(receivedMessages, sentMessages, this::resetGame);
-        new Thread(clientsManager).start();
     }
 
     private void Loop() {
 
         class GameLoop extends AnimationTimer {
-            private long previousNanoTime;
 
+            private long previousNanoTime;
             GameLoop(long startNanoTime) {
                 this.previousNanoTime = startNanoTime;
             }
@@ -165,84 +166,47 @@ public class GameServer extends Application {
                 float dt = timeScale * ((currentNanoTime - previousNanoTime) / 1000000000.0f);
                 previousNanoTime = currentNanoTime;
 
-                checkIfFinished();
+                timer.update();
 
+                input.update();
                 attendReceivedMessages();
-                sendRegularMessages();
-
-                physicsEngine.update(dt);
-
-                if(timer.getTime() - dt < 0.0f){
-                    resetGame();
-                    resetPositions();
-                }
-
-                timer.update(dt);
+                renderer.render();
             }
         };
-
         final long startNanoTime = System.nanoTime();
         new GameLoop(startNanoTime).start();
     }
 
-    private void checkIfFinished(){
-        if(clientsManager.interrupted())
-            System.exit(0);
-    }
-
-    public void goal(int side) {
-        if(side == Constants.LEFT_SIDE) {
-            player2.addScore();
-        } else {
-            player1.addScore();
+    private void StartCommunicator(){
+        try {
+            new Thread(new ServerCommunicator(sentMessages, receivedMessages)).start();
+        } catch (IOException e) {
+            System.out.println("Could not create server communicator");
+            System.exit(-1);
         }
-        scoreBoard.setScore(player1.getScore(), player2.getScore());
-        resetPositions();
-        checkScores();
-    }
-
-    public void checkScores(){
-        if(player1.getScore() == Constants.MAX_SCORE || player2.getScore() == Constants.MAX_SCORE){
-            resetPlayersScore();
-        }
-
-        System.out.println(player1.getScore() + " : " + player2.getScore());
     }
 
     private void attendReceivedMessages(){
-        resetPlayerMoves();
         while(receivedMessages.hasFront()){
-            MessageParser.parseMessage(receivedMessages.front(), getMessageHandler());
+            byte[] message = receivedMessages.front();
+            MessageParser.parseMessage(message, getMessageHandler());
         }
     }
 
-    private void sendRegularMessages() {
-        for(int i = 0; i < sentMessages.length; i++) {
-            MessageQueue messageQueue = sentMessages[i];
-            byte[] message = MessageParser.parseArgs(MessageType.SET_ID, new Object[] { i + 1 });
-            messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.TIME, new Object[]{timer.getTime()});
-            messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.PLAYER_POS, new Object[]{1, player1.getEntity().getPosition().x, player1.getEntity().getPosition().y });
-            messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.PLAYER_POS, new Object[]{2, player2.getEntity().getPosition().x, player2.getEntity().getPosition().y });
-            messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.BALL_POS, new Object[]{ ball.getPosition().x, ball.getPosition().y, ball.getBody().getAngle() });
-            messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.SCORE, new Object[] { player1.getScore(),  player2.getScore() });
-            messageQueue.add(message);
-
-        }
+    private void setInputCallbacks(){
+        input.setJumpCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.JUMP, new Object[]{clientId})));
+        input.setMoveLeftCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_LEFT, new Object[]{clientId})));
+        input.setMoveRightCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_RIGHT, new Object[]{clientId})));
     }
 
     private void resetPlayersScore(){
         player1.resetScore();
         player2.resetScore();
         timer.resetTime();
-        scoreBoard.resetScore();
+        //scoreBoard.resetScore();
     }
 
-    public void resetPositions (){
+    private void resetPositions (){
         Platform.runLater(() -> {
             player1.getEntity().resetBody();
             player2.getEntity().resetBody();
@@ -250,26 +214,38 @@ public class GameServer extends Application {
         });
     }
 
-    public void resetGame(){
-        resetPlayersScore();
+    private void reset(){
         resetPositions();
-        resetBonus();
+        resetPlayersScore();
     }
 
-    public MessageParser.MessageHandler getMessageHandler(){
+
+    private MessageParser.MessageHandler getMessageHandler(){
         return (type, intArgs, floatArgs) -> {
             switch(type){
-                case MOVE_RIGHT:
-                    moveRightMessage(intArgs, floatArgs);
+                case SCORE:
+                    scoreMessage(intArgs, floatArgs);
                     break;
-                case MOVE_LEFT:
-                    moveLeftMessage(intArgs, floatArgs);
+                case BALL_POS:
+                    ballPosMessage(intArgs, floatArgs);
                     break;
-                case JUMP:
-                    jumpMessage(intArgs, floatArgs);
+                case PLAYER_POS:
+                    playerPosMessage(intArgs, floatArgs);
+                    break;
+                case TIME:
+                    timeMessage(intArgs, floatArgs);
+                    break;
+                case SET_ID:
+                    idMessage(intArgs, floatArgs);
+                    break;
+                case ADDBONUS:
+                    addBonusMessage(intArgs, floatArgs);
+                    break;
+                case REMOVEBONUS:
+                    removeBonusMessage(intArgs, floatArgs);
                     break;
                 default:
-                    throw new IllegalStateException("Unsupported message type.");
+                    throw new IllegalStateException("Unsupported message type: " + type);
             }
         };
     }
@@ -278,71 +254,49 @@ public class GameServer extends Application {
         timeScale = scale;
     }
 
-    public static void main(String[] args) {
-        launch(args);
+    private void scoreMessage(int[] argsInt, float[] argsFloat){
+        player1.setScore(argsInt[0]);
+        player2.setScore(argsInt[1]);
+        scoreBoard.setScore(player1.getScore(), player2.getScore());
     }
 
-
-    public void moveRightMessage(int[] intArgs, float[] floatArgs){
-        if(intArgs[0] == 1)
-            player1.MoveRight();
-        else if(intArgs[0] == 2)
-            player2.MoveRight();
+    private void ballPosMessage(int[] argsInt, float[] argsFloat){
+        ball.setPosition(new Vec2(argsFloat[0], argsFloat[1]));
+        ball.setAngle(argsFloat[2]);
     }
 
-    public void moveLeftMessage(int[] intArgs, float[] floatArgs){
-        if(intArgs[0] == 1)
-            player1.MoveLeft();
-        else if(intArgs[0] == 2)
-            player2.MoveLeft();
+    private void playerPosMessage(int[] argsInt, float[] argsFloat){
+        Vec2 newPosition = new Vec2(argsFloat[1], argsFloat[2]);
+        if(argsInt[0] == 1) {
+            player1.getEntity().setPosition(newPosition);
+        }
+        else if(argsInt[0] == 2)
+            player2.getEntity().setPosition(newPosition);
     }
 
-    public void jumpMessage(int[] intArgs, float[] floatArgs){
-        if(intArgs[0] == 1)
-            player1.Jump();
-        else if(intArgs[0] == 2)
-            player2.Jump();
+    private void timeMessage(int[] argsInt, float[] argsFloat){
+        //timer.refresh(argsFloat[0]);
+        timer.setTime(argsFloat[0]);
     }
 
-    public void resetBonus(){
-        removeBonus();
-        createNewBonusInTheFuture();
+    private void idMessage(int[] argsInt, float[] argsFloat) {
+        clientId = argsInt[0];
     }
 
-    private void removeBonus(){
-        Platform.runLater(() -> {
-            if(bonus!=null) {
-                sendMessage(MessageType.REMOVEBONUS, new Object[] {});
-                physicsEngine.removePhysicsObject(bonus);
-                renderer.removeRenderable(bonus);
-            }
-        });
-    }
-
-    private void createNewBonusInTheFuture(){
-        PauseTransition wait = new PauseTransition(Duration.seconds(new Random().nextInt(Constants.BONUS_MAX_WAIT_TIME) + 1));
-        wait.setOnFinished((e) -> {
-            createNewBonus();
-        });
-        wait.play();
-    }
-
-    private void createNewBonus(){
-        bonus = Bonus.createRandomBonus();
+    private void addBonusMessage(int[] argsInt, float[] argsFloat){
+        bonus = new Bonus(BonusTypes.getByInt(argsInt[0]), new Vec2(argsFloat[1], argsFloat[2]));
         physicsEngine.addPhysicsObject(bonus);
         renderer.addRenderable(bonus);
-        sendMessage(MessageType.ADDBONUS, new Object[] {bonus.getType().getValue(), bonus.getPosition().x, bonus.getPosition().y});
     }
 
-    private void sendMessage(MessageType type, Object[] args){
-        byte[] message = MessageParser.parseArgs(type, args);
-        for (MessageQueue sentMessage : sentMessages) {
-            sentMessage.add(message);
+    private void removeBonusMessage(int[] argsInt, float[] argsFloat){
+        if(bonus!=null) {
+            physicsEngine.removePhysicsObject(bonus);
+            renderer.removeRenderable(bonus);
         }
     }
 
-    private void resetPlayerMoves(){
-        player1.resetMoves();
-        player2.resetMoves();
+    public static void main(String[] args) {
+        launch(args);
     }
 }

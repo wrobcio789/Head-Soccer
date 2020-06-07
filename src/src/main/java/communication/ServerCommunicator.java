@@ -17,7 +17,6 @@ public class ServerCommunicator implements Runnable {
     private final MessageQueue messagesToSend;
     private final MessageQueue receivedMessages;
     private final Socket socket;
-    private boolean shouldStop = false;
 
 
     public ServerCommunicator(MessageQueue messagesToSend, MessageQueue receivedMessages) throws IOException {
@@ -44,7 +43,6 @@ public class ServerCommunicator implements Runnable {
     @Override
     public void run() {
         messagesToSend.clear();
-        receivedMessages.clear();
         try(InputStream serverInput = socket.getInputStream();
             OutputStream serverOutput = socket.getOutputStream();) {
             communicate(serverInput, serverOutput);
@@ -56,7 +54,7 @@ public class ServerCommunicator implements Runnable {
     }
 
     private void communicate(InputStream input, OutputStream output) throws InterruptedException {
-        while(!Thread.currentThread().isInterrupted()){
+        while(true){
             tryToSendMessage(output);
             tryToReceiveMessage(input);
             Thread.sleep(2);
@@ -69,11 +67,9 @@ public class ServerCommunicator implements Runnable {
                 sendMessage(output);
             }
         } catch (InterruptedException e) {
-            System.out.println("Thread interrupted.");
-            Thread.currentThread().interrupt();
+            System.out.println("Connection interrupted.");
         } catch (IOException e) {
             System.out.println("Could not send message.");
-            Thread.currentThread().interrupt();
         }
     }
 

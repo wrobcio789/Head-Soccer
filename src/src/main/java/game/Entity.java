@@ -44,8 +44,7 @@ public class Entity implements Renderable, PhysicsObject {
 
     @Override
     public void DestroyBody(World world){
-        if(physicsBody != null)
-            world.destroyBody(physicsBody);
+        world.destroyBody(physicsBody);
         physicsBody = null;
     }
 
