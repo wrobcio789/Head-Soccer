@@ -3,6 +3,7 @@ package game.server;
 import communication.MessageQueue;
 import communication.ServerCommunicator;
 import game.Constants;
+import utility.Callback;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -13,10 +14,12 @@ public class ClientsManager implements Runnable{
 
     private final MessageQueue receivedMessages;
     private final MessageQueue[] sentMessages;
+    private final Callback resetCallback;
 
-    public ClientsManager(MessageQueue receivedMessages, MessageQueue[] sentMessages){
+    public ClientsManager(MessageQueue receivedMessages, MessageQueue[] sentMessages, Callback resetCallback){
         this.receivedMessages = receivedMessages;
         this.sentMessages = sentMessages;
+        this.resetCallback = resetCallback;
     }
 
     @Override
@@ -34,6 +37,7 @@ public class ClientsManager implements Runnable{
         try {
             Socket client = server.accept();
             new Thread(new ServerCommunicator(sentMessages[id], receivedMessages, client)).start();
+            resetCallback.call();
         } catch (IOException e) {
             System.out.println("Could not connect to socket");
         }

@@ -42,8 +42,12 @@ public class MessageQueue {
         }
     }
 
+    public int size(){
+        return queue.size();
+    }
 
-    public boolean isEmpty(){
-        return queue.isEmpty();
+
+    public boolean hasFront(){
+        return !queue.isEmpty();
     }
 }

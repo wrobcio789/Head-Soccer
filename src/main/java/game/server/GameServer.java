@@ -3,15 +3,14 @@ package game.server;
 import communication.MessageParser;
 import communication.MessageQueue;
 import communication.MessageType;
-import game.BodyDefinitionFactory;
-import game.Constants;
-import game.Entity;
-import game.Player;
+import game.*;
+import game.events.BallKickEvent;
 import game.events.GoalEvent;
 import graphics.Renderer;
 import graphics.Sprite;
 import graphics.Timer;
 import javafx.animation.AnimationTimer;
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Group;
@@ -21,13 +20,14 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.jbox2d.common.Vec2;
 import physics.BodyFullDefinition;
 import physics.PhysicsEngine;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.net.ServerSocket;
+import java.util.Random;
 
 
 public class GameServer extends Application {
@@ -38,7 +38,9 @@ public class GameServer extends Application {
     private Entity ball;
     private Timer timer = null;
     private float timeScale = 1.0f;
+    private Bonus bonus;
 
+    private final boolean[] playerMoved = new boolean[Constants.MAX_PLAYERS];
     private final MessageQueue receivedMessages = new MessageQueue();
     private final MessageQueue[] sentMessages = {new MessageQueue(), new MessageQueue()};
 
@@ -90,13 +92,15 @@ public class GameServer extends Application {
         BodyFullDefinition rightWallDefinition = BodyDefinitionFactory.createWallDefinition(2);
         Entity rightWall = new Entity(rightWallDefinition, emptySprite);
 
-        Image goalImage = new Image(new FileInputStream("resources//bramka_test.png"));
-        Sprite goalSprite = new Sprite(goalImage, new Vec2(3, 3));
-        BodyFullDefinition rightGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.RIGHT_SIDE);
-        Entity rightGoal = new Entity(rightGoalDefinition, goalSprite);
-
+        Image leftGoalImage = new Image(new FileInputStream("resources//goal_left.png"));
+        Sprite leftGoalSprite = new Sprite(leftGoalImage, new Vec2(3, 3));
         BodyFullDefinition leftGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.LEFT_SIDE);
-        Entity leftGoal = new Entity(leftGoalDefinition, goalSprite);
+        Entity leftGoal = new Entity(leftGoalDefinition, leftGoalSprite);
+
+        Image rightGoalImage = new Image(new FileInputStream("resources//goal_right.png"));
+        Sprite rightGoalSprite = new Sprite(rightGoalImage, new Vec2(3, 3));
+        BodyFullDefinition rightGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.RIGHT_SIDE);
+        Entity rightGoal = new Entity(rightGoalDefinition, rightGoalSprite);
 
         Image player1Image = new Image(new FileInputStream("resources//player1.png"));
         Sprite player1Sprite = new Sprite(player1Image, new Vec2(0.0f, 0.0f));
@@ -127,13 +131,15 @@ public class GameServer extends Application {
         physicsEngine.addPhysicsObject(rightPlayer);
 
         physicsEngine.addContactListener(new GoalEvent(this));
+        physicsEngine.addContactListener(new BallKickEvent());
+        physicsEngine.addContactListener(Bonus.BonusContactListener(this));
 
         player1 = new Player(null, leftPlayer, "Maciej");
         player2 = new Player(null, rightPlayer, "Kaxaj");
     }
 
     private void StartCommunicators(){
-        new Thread(new ClientsManager(receivedMessages, sentMessages)).start();
+        new Thread(new ClientsManager(receivedMessages, sentMessages, this::resetGame)).start();
     }
 
     private void Loop() {
@@ -156,15 +162,6 @@ public class GameServer extends Application {
                 physicsEngine.update(dt);
                 timer.update(dt);
                 renderer.render();
-
-                long sleepTime = 30 - (long)(dt * 1000.0f);
-                try {
-                    if(sleepTime > 0){
-                        Thread.sleep(sleepTime);
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
         };
 
@@ -191,7 +188,8 @@ public class GameServer extends Application {
     }
 
     private void attendReceivedMessages(){
-        while(!receivedMessages.isEmpty()){
+        resetPlayerMoves();
+        while(receivedMessages.hasFront()){
             MessageParser.parseMessage(receivedMessages.front(), getMessageHandler());
         }
     }
@@ -207,7 +205,7 @@ public class GameServer extends Application {
             messageQueue.add(message);
             message = MessageParser.parseArgs(MessageType.PLAYER_POS, new Object[]{2, player2.getEntity().getPosition().x, player2.getEntity().getPosition().y });
             messageQueue.add(message);
-            message = MessageParser.parseArgs(MessageType.BALL_POS, new Object[]{ ball.getPosition().x, ball.getPosition().y });
+            message = MessageParser.parseArgs(MessageType.BALL_POS, new Object[]{ ball.getPosition().x, ball.getPosition().y, ball.getBody().getAngle() });
             messageQueue.add(message);
             message = MessageParser.parseArgs(MessageType.SCORE, new Object[] { player1.getScore(),  player2.getScore() });
             messageQueue.add(message);
@@ -227,6 +225,12 @@ public class GameServer extends Application {
             player2.getEntity().resetBody();
             ball.resetBody();
         });
+    }
+
+    private void resetGame(){
+        resetPlayersScore();
+        resetPlayersScore();
+        resetBonus();
     }
 
     public MessageParser.MessageHandler getMessageHandler(){
@@ -275,5 +279,47 @@ public class GameServer extends Application {
             player1.Jump();
         else if(intArgs[0] == 2)
             player2.Jump();
+    }
+
+    public void resetBonus(){
+        removeBonus();
+        createNewBonusInTheFuture();
+    }
+
+    private void removeBonus(){
+        Platform.runLater(() -> {
+            if(bonus!=null) {
+                sendMessage(MessageType.REMOVEBONUS, new Object[] {});
+                physicsEngine.removePhysicsObject(bonus);
+                renderer.removeRenderable(bonus);
+            }
+        });
+    }
+
+    private void createNewBonusInTheFuture(){
+        PauseTransition wait = new PauseTransition(Duration.seconds(new Random().nextInt(Constants.BONUS_MAX_WAIT_TIME) + 1));
+        wait.setOnFinished((e) -> {
+            createNewBonus();
+        });
+        wait.play();
+    }
+
+    private void createNewBonus(){
+        bonus = Bonus.createRandomBonus();
+        physicsEngine.addPhysicsObject(bonus);
+        renderer.addRenderable(bonus);
+        sendMessage(MessageType.ADDBONUS, new Object[] {bonus.getType().getValue(), bonus.getPosition().x, bonus.getPosition().y});
+    }
+
+    private void sendMessage(MessageType type, Object[] args){
+        byte[] message = MessageParser.parseArgs(type, args);
+        for (MessageQueue sentMessage : sentMessages) {
+            sentMessage.add(message);
+        }
+    }
+
+    private void resetPlayerMoves(){
+        player1.resetMoves();
+        player2.resetMoves();
     }
 }

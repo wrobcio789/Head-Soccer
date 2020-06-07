@@ -6,10 +6,12 @@ public enum MessageType {
     BALL_POS(3),
     TIME(4),
     SET_ID(5),
+    ADDBONUS(6),
+    REMOVEBONUS(7),
 
-    MOVE_LEFT(6),
-    MOVE_RIGHT(7),
-    JUMP(8);
+    MOVE_LEFT(8),
+    MOVE_RIGHT(9),
+    JUMP(10);
 
     private final int value;
 

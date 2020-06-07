@@ -44,7 +44,7 @@ public class BodyDefinitionFactory {
         EdgeShape edgeShape = new EdgeShape();
         edgeShape.set(new Vec2(-30.0f, Constants.GROUND_LEVEL), new Vec2(30.0f, Constants.GROUND_LEVEL));
         fixtureDef.shape = edgeShape;
-        fixtureDef.friction = 0.2f;
+        fixtureDef.friction = 0.8f;
 
         List<FixtureDef> fixtureDefs = new LinkedList<>();
         fixtureDefs.add(fixtureDef);

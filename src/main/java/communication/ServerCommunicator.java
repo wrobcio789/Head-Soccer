@@ -17,7 +17,6 @@ public class ServerCommunicator implements Runnable {
     private final MessageQueue messagesToSend;
     private final MessageQueue receivedMessages;
     private final Socket socket;
-    private final byte[] buffer = new byte[Constants.MESSAGE_BUFFER_SIZE];
 
 
     public ServerCommunicator(MessageQueue messagesToSend, MessageQueue receivedMessages) throws IOException {
@@ -58,13 +57,13 @@ public class ServerCommunicator implements Runnable {
         while(true){
             tryToSendMessage(output);
             tryToReceiveMessage(input);
-            Thread.sleep(3);
+            Thread.sleep(2);
         }
     }
 
     private void tryToSendMessage(OutputStream output){
         try {
-            while(!messagesToSend.isEmpty()) {
+            while(messagesToSend.hasFront()) {
                 sendMessage(output);
             }
         } catch (InterruptedException e) {
@@ -75,7 +74,7 @@ public class ServerCommunicator implements Runnable {
     }
 
     private void sendMessage(OutputStream output) throws InterruptedException, IOException {
-        Arrays.fill(buffer, (byte)0);
+        byte[] buffer = new byte[Constants.MESSAGE_BUFFER_SIZE];
         byte[] message = messagesToSend.front();
         if(message.length > Constants.MESSAGE_BUFFER_SIZE)
             throw new UnsupportedOperationException("MESSAGE MUST BE SHORTER THEN BUFFER SIZE");
@@ -97,6 +96,7 @@ public class ServerCommunicator implements Runnable {
     }
 
     private void receiveMessage(InputStream input) throws IOException, InterruptedException {
+        byte[] buffer = new byte[Constants.MESSAGE_BUFFER_SIZE];
         input.read(buffer, 0, Constants.MESSAGE_BUFFER_SIZE);
         receivedMessages.add(buffer);
     }

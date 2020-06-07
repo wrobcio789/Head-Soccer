@@ -11,8 +11,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class PhysicsEngine {
-    static final int VELOCITY_ITERATIONS = 6;
-    static final int POSITION_ITERATIONS = 6;
+    static final int VELOCITY_ITERATIONS = 10;
+    static final int POSITION_ITERATIONS = 10;
 
     private final World world;
     private final List<PhysicsContactListener> contactListeners = new LinkedList<>();

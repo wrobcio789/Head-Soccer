@@ -4,10 +4,8 @@ import communication.MessageParser;
 import communication.MessageQueue;
 import communication.MessageType;
 import communication.ServerCommunicator;
-import game.BodyDefinitionFactory;
-import game.Constants;
-import game.Entity;
-import game.Player;
+import game.*;
+import game.events.bonuses.BonusTypes;
 import graphics.Renderer;
 import graphics.Sprite;
 import graphics.Timer;
@@ -26,23 +24,26 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import org.jbox2d.common.Vec2;
 import physics.BodyFullDefinition;
+import physics.PhysicsContactListener;
 import physics.PhysicsEngine;
 
-import javax.swing.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class GameClient extends Application {
     private static final String TITLE = Constants.TITLE;
     private Scene scene;
     private Renderer renderer = null;
+    private PhysicsEngine physicsEngine;
     private Player player1, player2;
     private Entity ball;
     private Input input = null;
     private Timer timer = null;
     private int clientId = 1;
     private float timeScale = 1.0f;
+    private Bonus bonus;
 
     private final MessageQueue receivedMessages = new MessageQueue();
     private final MessageQueue sentMessages = new MessageQueue();
@@ -94,13 +95,15 @@ public class GameClient extends Application {
         BodyFullDefinition rightWallDefinition = BodyDefinitionFactory.createWallDefinition(2);
         Entity rightWall = new Entity(rightWallDefinition, emptySprite);
 
-        Image goalImage = new Image(new FileInputStream("resources//bramka_test.png"));
-        Sprite goalSprite = new Sprite(goalImage, new Vec2(3, 3));
-        BodyFullDefinition rightGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.RIGHT_SIDE);
-        Entity rightGoal = new Entity(rightGoalDefinition, goalSprite);
-
+        Image leftGoalImage = new Image(new FileInputStream("resources//goal_left.png"));
+        Sprite leftGoalSprite = new Sprite(leftGoalImage, new Vec2(3, 3));
         BodyFullDefinition leftGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.LEFT_SIDE);
-        Entity leftGoal = new Entity(leftGoalDefinition, goalSprite);
+        Entity leftGoal = new Entity(leftGoalDefinition, leftGoalSprite);
+
+        Image rightGoalImage = new Image(new FileInputStream("resources//goal_right.png"));
+        Sprite rightGoalSprite = new Sprite(rightGoalImage, new Vec2(3, 3));
+        BodyFullDefinition rightGoalDefinition = BodyDefinitionFactory.createGoalDefinition(Constants.RIGHT_SIDE);
+        Entity rightGoal = new Entity(rightGoalDefinition, rightGoalSprite);
 
         Image player1Image = new Image(new FileInputStream("resources//player1.png"));
         Sprite player1Sprite = new Sprite(player1Image, new Vec2(0.0f, 0.0f));
@@ -115,13 +118,13 @@ public class GameClient extends Application {
 
         renderer.addRenderable(backgroundSprite);
         renderer.addRenderable(ball);
-        renderer.addRenderable(rightGoal);
-        renderer.addRenderable(leftGoal);
         renderer.addRenderable(timer);
         renderer.addRenderable(leftPlayer);
         renderer.addRenderable(rightPlayer);
+        renderer.addRenderable(rightGoal);
+        renderer.addRenderable(leftGoal);
 
-        PhysicsEngine physicsEngine = new PhysicsEngine(Constants.GRAVITY);
+        physicsEngine = new PhysicsEngine(Constants.GRAVITY);
         physicsEngine.addPhysicsObject(ball);
         physicsEngine.addPhysicsObject(rightGoal);
         physicsEngine.addPhysicsObject(leftGoal);
@@ -157,15 +160,6 @@ public class GameClient extends Application {
                 input.update();
                 attendReceivedMessages();
                 renderer.render();
-
-                long sleepTime = 30 - (long)(dt * 1000.0f);
-                try {
-                    if(sleepTime > 0){
-                        Thread.sleep(sleepTime);
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
         };
         final long startNanoTime = System.nanoTime();
@@ -182,17 +176,16 @@ public class GameClient extends Application {
     }
 
     private void attendReceivedMessages(){
-        while(!receivedMessages.isEmpty()){
-            System.out.println("Parsing message");
-            MessageParser.parseMessage(receivedMessages.front(), getMessageHandler());
+        while(receivedMessages.hasFront()){
+            byte[] message = receivedMessages.front();
+            MessageParser.parseMessage(message, getMessageHandler());
         }
     }
 
     private void setInputCallbacks(){
-        Integer[] args = {clientId};
-        input.setJumpCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.JUMP, args)));
-        input.setMoveLeftCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_LEFT, args)));
-        input.setMoveRightCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_RIGHT, args)));
+        input.setJumpCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.JUMP, new Object[]{clientId})));
+        input.setMoveLeftCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_LEFT, new Object[]{clientId})));
+        input.setMoveRightCallback(() -> sentMessages.add(MessageParser.parseArgs(MessageType.MOVE_RIGHT, new Object[]{clientId})));
     }
 
     private void resetPlayersScore(){
@@ -233,6 +226,12 @@ public class GameClient extends Application {
                 case SET_ID:
                     idMessage(intArgs, floatArgs);
                     break;
+                case ADDBONUS:
+                    addBonusMessage(intArgs, floatArgs);
+                    break;
+                case REMOVEBONUS:
+                    removeBonusMessage(intArgs, floatArgs);
+                    break;
                 default:
                     throw new IllegalStateException("Unsupported message type: " + type);
             }
@@ -250,12 +249,14 @@ public class GameClient extends Application {
 
     private void ballPosMessage(int[] argsInt, float[] argsFloat){
         ball.setPosition(new Vec2(argsFloat[0], argsFloat[1]));
+        ball.setAngle(argsFloat[2]);
     }
 
     private void playerPosMessage(int[] argsInt, float[] argsFloat){
         Vec2 newPosition = new Vec2(argsFloat[1], argsFloat[2]);
-        if(argsInt[0] == 1)
+        if(argsInt[0] == 1) {
             player1.getEntity().setPosition(newPosition);
+        }
         else if(argsInt[0] == 2)
             player2.getEntity().setPosition(newPosition);
     }
@@ -266,6 +267,19 @@ public class GameClient extends Application {
 
     private void idMessage(int[] argsInt, float[] argsFloat) {
         clientId = argsInt[0];
+    }
+
+    private void addBonusMessage(int[] argsInt, float[] argsFloat){
+        bonus = new Bonus(BonusTypes.getByInt(argsInt[0]), new Vec2(argsFloat[1], argsFloat[2]));
+        physicsEngine.addPhysicsObject(bonus);
+        renderer.addRenderable(bonus);
+    }
+
+    private void removeBonusMessage(int[] argsInt, float[] argsFloat){
+        if(bonus!=null) {
+            physicsEngine.removePhysicsObject(bonus);
+            renderer.removeRenderable(bonus);
+        }
     }
 
     public static void main(String[] args) {

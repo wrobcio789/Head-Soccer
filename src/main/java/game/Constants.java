@@ -23,6 +23,7 @@ public class Constants {
     public static final float BALL_POS_Y = 3.0f;
     public static final float BALL_RADIUS = 0.3f;
     public static final float BALL_DENSITY = 0.1f;
+    public static final Vec2 BALL_KICK_VEC = new Vec2(0.0f, 1.5f);
 
     public static final float PLAYER_RADIUS = 0.4f;
     public static final float PLAYER_POS_Y = GROUND_LEVEL + PLAYER_RADIUS;
@@ -52,7 +53,7 @@ public class Constants {
     public static final float BONUS_MARGIN_X = 1.50f;
     public static final float BONUS_MAX_X = WORLD_WIDTH - BONUS_MARGIN_X;
     public static final float BONUS_MIN_X = BONUS_MARGIN_X;
-    public static final float BONUS_MAX_Y = WORLD_HEIGHT - 1.50f;
+    public static final float BONUS_MAX_Y = WORLD_HEIGHT - 3.50f;
     public static final float BONUS_MIN_Y = GROUND_LEVEL + BONUS_RADIUS;
 
     public static final int LEFT_SIDE = 1;

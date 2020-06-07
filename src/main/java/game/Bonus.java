@@ -1,6 +1,7 @@
-/*package game;
+package game;
 
 import game.events.bonuses.BonusTypes;
+import game.server.GameServer;
 import graphics.Sprite;
 import javafx.animation.PauseTransition;
 import javafx.scene.image.Image;
@@ -14,8 +15,20 @@ import java.util.Random;
 
 public class Bonus extends Entity {
 
+    private final BonusTypes type;
+
     public Bonus(BonusTypes type){
         super(BodyDefinitionFactory.createBonusDefinition(getRandomPosition(), type), createSprite(type));
+        this.type = type;
+    }
+
+    public Bonus(BonusTypes type, Vec2 position){
+        super(BodyDefinitionFactory.createBonusDefinition(position, type), createSprite(type));
+        this.type = type;
+    }
+
+    public BonusTypes getType(){
+        return type;
     }
 
     public static Bonus createRandomBonus(){
@@ -52,7 +65,7 @@ public class Bonus extends Entity {
         return new Sprite(image, new Vec2(0.0f, 0.0f));
     }
 
-    public static PhysicsContactListener BonusContactListener(GameBase game){
+    public static PhysicsContactListener BonusContactListener(GameServer game){
         return contact -> {
             Object DataA = contact.m_fixtureA.m_userData;
             Object DataB = contact.m_fixtureB.m_userData;
@@ -73,7 +86,7 @@ public class Bonus extends Entity {
         };
     }
 
-    private static void BonusEffect(BonusTypes type, GameBase game){
+    private static void BonusEffect(BonusTypes type, GameServer game){
         PauseTransition bonusResetter;
         switch(type){
             case SPEED_UP_ALL:
@@ -92,4 +105,4 @@ public class Bonus extends Entity {
                 throw new IllegalStateException("Unexpected value: " + type);
         }
     }
-}*/
+}

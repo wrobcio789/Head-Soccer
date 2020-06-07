@@ -8,6 +8,10 @@ public class Player {
     private Input input;
     private Entity entity;
 
+    private boolean movedLeft = false;
+    private boolean movedRight = false;
+    private boolean jumped = false;
+
     public Player(Input input, Entity entity , String name){
         this.name = name;
         this.input = input;
@@ -24,16 +28,24 @@ public class Player {
     }
 
     public void MoveLeft(){
-        entity.getBody().applyForce(new Vec2(-4.0f, 0.0f), entity.getBody().getWorldCenter());
+        if(!movedLeft) {
+            entity.getBody().applyForce(new Vec2(-4.0f, 0.0f), entity.getBody().getWorldCenter());
+            movedLeft = true;
+        }
     }
 
     public void MoveRight(){
-        entity.getBody().applyForce(new Vec2(4.0f, 0.0f), entity.getBody().getWorldCenter());
+        if(!movedRight){
+            entity.getBody().applyForce(new Vec2(4.0f, 0.0f), entity.getBody().getWorldCenter());
+            movedRight = true;
+        }
     }
 
     public void Jump(){
-        if(entity.getPosition().y <= Constants.GROUND_LEVEL + Constants.PLAYER_RADIUS + Constants.EPSILON)
+        if(!jumped && entity.getPosition().y <= Constants.GROUND_LEVEL + Constants.PLAYER_RADIUS + Constants.EPSILON) {
             entity.getBody().applyForce(new Vec2(0.00f, 250.0f), entity.getBody().getWorldCenter());
+            jumped = true;
+        }
     }
 
     public void addScore(){
@@ -58,5 +70,11 @@ public class Player {
 
     public Entity getEntity(){
         return entity;
+    }
+
+    public void resetMoves(){
+        movedLeft = false;
+        movedRight = false;
+        jumped = false;
     }
 }

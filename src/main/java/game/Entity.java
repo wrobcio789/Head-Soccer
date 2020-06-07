@@ -29,6 +29,10 @@ public class Entity implements Renderable, PhysicsObject {
         physicsBody.setTransform(position, physicsBody.getAngle());
     }
 
+    public void setAngle(float angle){
+        physicsBody.setTransform(physicsBody.getPosition(), angle);
+    }
+
     public BodyFullDefinition getBodyFullDefinition(){  return bodyFullDefinition; }
 
     @Override
